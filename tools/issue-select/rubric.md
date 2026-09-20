@@ -42,13 +42,14 @@ will fail eval issues designed around that family.
 
 ## Verdict rule
 
-Accept only if every required check passes. A `?` (unclear) on any required 
-check counts as a fail. Preferred checks never change the verdict — they only 
-rank the accepted issues by fit. This rubric currently has no preferred checks; 
-all five checks are required because each one, when it fails, is disqualifying 
-on its own (a dead maintainer, an unresponsive repo, a repo nobody actually 
-uses, an already-claimed issue, or an unbounded scope all make an issue 
-unsuitable for a first contribution).
+Accept only if every required check grades `pass`. A check graded `unclear` 
+on any required check counts as a `fail` for verdict purposes. Preferred 
+checks never change the verdict — they only rank the accepted issues by fit. 
+This rubric currently has no preferred checks; all five checks are required 
+because each one, when it fails, is disqualifying on its own (a dead 
+maintainer, an unresponsive repo, a repo nobody actually uses, an 
+already-claimed issue, or an unbounded scope all make an issue unsuitable 
+for a first contribution).
 
 <!-- State how the grades above combine into accept or reject, and how
 unclear is treated. Example shape (write your own): "accept if every
