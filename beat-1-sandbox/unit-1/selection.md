@@ -54,7 +54,17 @@ Per the Path Review house rule, classmate claims don't block you — claim and o
 
 ### Issue analysis
 
-issue-05 (scored, not calibration): my rubric graded reject, gold label is reject — these agree, so I'll instead cover issue-15, one of the two arguable issues my rubric split on across different runs of the same final rubric (issue-15 was wrong in run #2, correct in run #3; issue-05 was correct in run #2, wrong in run #3 — the model's grading of borderline "responds-to-issues" and "scope" evidence isn't perfectly stable run to run). Gold label for issue-15 is reject. In the run where my rubric got it wrong, it graded accept. The pattern in both flip-flopping issues is that they sit near the responds-to-issues preferred-check boundary and near the scope-is-bounded "concrete target" boundary — exactly the kind of "genuinely arguable scope call" the assignment brief warns four of the twenty issues will be. My rubric's required checks (maintainer-alive, repo-in-use, unclaimed, scope-is-bounded, contribution-policy-allows-ai) are evaluated by an LLM judge from qualitative evidence, not a hard number, so a borderline case can tip either way between runs.
+issue-15 (scored, not calibration): my rubric's verdict for this issue was 
+unstable across final-rubric runs — it graded reject correctly in the run 
+saved to eval-run.txt (19/20), but graded accept incorrectly in an earlier 
+run of the same rubric. The gold label is reject. The issue sits near two 
+soft boundaries in my rubric at once: responds-to-issues (a preferred check 
+graded qualitatively from a 5-issue reply-time sample, not a hard count) and 
+scope-is-bounded (whether the issue names a genuinely concrete fix target). 
+Because these checks are graded by an LLM judge reading qualitative evidence 
+rather than applying a fixed numeric rule, a borderline case can tip either 
+way between runs — exactly the kind of "genuinely arguable scope call" the 
+assignment brief says four of the twenty scored issues would be.
 
 ### Check rationale
 
