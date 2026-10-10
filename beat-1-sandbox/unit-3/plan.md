@@ -81,3 +81,4 @@ I re-run the same steps I used for the repro and compare with the outputs quoted
 ## Deviations
 
 - Built as planned: one change to the phone_us pattern, four xfail markers removed, and one regression test added; the test file went from 20 passed, 5 xfailed to 25 passed, 1 xfailed. The false-positive risk from the plan is confirmed in the repo: scrub("Total 100 200 3000 items") now returns "Total [REDACTED] items". test_mixed_pii_and_text is still xfailed because of the street_address over-match, as planned.
+- Process, not code: my Approach step 4 said I would run `make format`. I ran `black --check` on the two changed files and on the whole repo instead, because `make format` rewrites files; both reported nothing to change. I did not run the frontend tests locally because no frontend file changed.
