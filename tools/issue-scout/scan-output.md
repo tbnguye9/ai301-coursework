@@ -221,3 +221,40 @@ Remember the scope rule: once you commit to one of these, comment on the issue t
     "verdict": "accept"
   }
 ]
+
+### opensearch-benchmark #348 (graded after claiming it on the Issue Selection site)
+
+Verdict: accept. All five required checks pass. Issue #348 asks for a clearer error message when OpenSearch Benchmark (OSB) hits a transport error. It's a small Python change and fits your profile (Python, a small fix, an active maintainer).
+
+| Check | Grade | Evidence |
+|---|---|---|
+| maintainer-alive (required) | pass | The newest commit on the default branch is from 2026-10-14 (#1121), 3 days ago |
+| repo-in-use (required) | pass | Release 1.20.0 shipped 2026-08-25; 197 open issues and PRs; the repo was created 2021-04-27 |
+| unclaimed (required) | pass | No assignees, no linked or cross-referenced PRs, 0 comments |
+| scope-is-bounded (required) | pass | Replace the bare "transport error" stack trace with a message that tells the user what to check. It was opened by a collaborator and carries the enhancement and good first issue labels |
+| contribution-policy-allows-ai (required) | pass | CONTRIBUTING.md, DEVELOPER_GUIDE.md and the PR template say nothing about AI, and silence passes |
+| responds-to-issues (preferred) | pass | Issue #1108 was opened by github-actions[bot], and collaborator rishabh6788 replied 16 seconds later. That's the only qualifying sample: #324 was a self-reply, and #1112, #1118 and #1049 have no maintainer reply |
+
+Where the rubric passes it but I'd be careful:
+
+- The issue is stale. It was opened 2023-07-31 and got its good first issue label 2023-09-08. In the three years since, nobody has commented on it, maintainers included. The rubric has no check for issue age or for whether a maintainer has engaged, so it passes. Before writing code, post a short comment asking whether the issue is still wanted.
+- The code has moved. Recent PRs added a database abstraction layer and multi-engine support (#1007, #1023, #1041, #1121). The place where transport errors surface may no longer be where it was in 2023. Check that the example errors in #330 still reproduce.
+- The responds-to-issues pass is weak. The only qualifying reply was a collaborator answering an issue the CI bot opened, within seconds. That's a thin sign that maintainers answer outside contributors.
+- You need a cluster to reproduce it. You'd have to run OpenSearch locally, for example in Docker. That's free, so it doesn't conflict with your rule against paid services or special hardware.
+
+The first and third points are rubric gaps, not reasons to reject. Logging them in scan-notes.md would be a good next step. A possible patch is a preferred check that a maintainer has commented on the issue in the last 12 months.
+
+[
+  {
+    "item": "https://github.com/opensearch-project/opensearch-benchmark/issues/348",
+    "checks": [
+      {"name": "maintainer-alive", "grade": "pass", "evidence": "Newest default-branch commit 2026-10-14 (#1121), 3 days before today"},
+      {"name": "responds-to-issues", "grade": "pass", "evidence": "#1108 opened by github-actions[bot]; collaborator rishabh6788 replied 16 seconds later (only qualifying sample)"},
+      {"name": "repo-in-use", "grade": "pass", "evidence": "Release 1.20.0 on 2026-08-25; 197 open issues/PRs; repo created 2021-04-27"},
+      {"name": "unclaimed", "grade": "pass", "evidence": "assignees: []; no linked or cross-referenced PRs in timeline; 0 comments"},
+      {"name": "scope-is-bounded", "grade": "pass", "evidence": "Names specific behavior (replace bare 'transport error' trace with descriptive message); labels: enhancement, good first issue"},
+      {"name": "contribution-policy-allows-ai", "grade": "pass", "evidence": "No AI/LLM mention in CONTRIBUTING.md, DEVELOPER_GUIDE.md, or PULL_REQUEST_TEMPLATE.md (silence passes)"}
+    ],
+    "verdict": "accept"
+  }
+]
