@@ -55,10 +55,9 @@ happened; these entries are the toolkit's own timeline.
 All four entries are graded. Keep every heading below, and fill each
 one in the week it belongs to.
 
-**Unit 5: [one line on the tool work]**
+**Unit 5: issue-scout with my own queries, a stricter rubric, and a pre-grading filter script**
 
-[2-4 sentences: what you built (the scout, your strategy), what broke
-or fell short, what changed because of it.]
+I wrote four gh search issues queries and eight ranking rules from my fit profile. My first scan was dominated by issues opened the same day (one drew a competing pull request within an hour), and responds-to-issues passed repositories only because the owner answered their own issues, so I added a creation-date window to the queries and made that check require an issue opened by someone else. The second scan then accepted several repositories only days old because repo-in-use passed on any recent commit, so I added a 90-day minimum repository age and confirmed it by grading one young and one old repository (the young one was rejected and the old one still passed). Because assignees=0 also hid claims on four candidates I checked by hand, I wrote a small script that drops issues with an open pull request before I pay to grade.
 
 **Unit 6: [one line on the tool work]**
 
