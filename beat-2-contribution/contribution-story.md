@@ -1,4 +1,4 @@
-# Contribution: [Issue Title]
+# Contribution: Make more descriptive error messages for Transport Errors
 
 Path: `beat-2-contribution/contribution-story.md`
 
@@ -8,11 +8,10 @@ format criteria grade exactly that. Your course repo link is the whole submissio
 files and no evidence uploads are part of Assignment 5.
 
 **Contribution Number:** [1]
-**Student:** [Student name]
-**GitHub Username:** [your GitHub username, exactly as it appears on your profile - no @, no
-profile URL. Your comments upstream are identified by this name.]
-**Issue:** [GitHub issue link]
-**Pull Request:** [GitHub PR link, once opened]
+**Student:** Thuan Nguyen
+**GitHub Username:** tbnguye9
+**Issue:** https://github.com/opensearch-project/opensearch-benchmark/issues/348
+**Pull Request:** not opened yet
 
 One repository, built across units 5 to 8, telling the whole story of your real
 contribution. Fill it as you work, not at the end — the sections below ask for evidence that
@@ -79,25 +78,20 @@ drafted, what you did with the draft.]
 
 ## Why I Chose This Issue
 
-[1-2 paragraphs in your own words: how you searched, what your scan
-surfaced, what your scout's verdict said, why this issue fits your
-profile, and what you hope to learn. If your scout's verdict on it
-was reject and you chose it anyway, say so here and say why; choosing
-against your own tool silently is what loses points. Close with an
-honest read of the tool itself: where the scout fell short on a real
-wild search and what you changed or would change, or what convinced
-you it held up. **Record the link to your claim comment in this section too.**
-Not claimed yet? Write `claim pending` and today's date where the link goes,
-and add the link the moment your claim lands.]
+I searched with four `gh search issues` queries and eight ranking rules built from my fit profile: Python, JavaScript, Java, React and C/C++ experience, a wish to get better at the GitHub contribution workflow, and a preference to avoid math-heavy work. My scout accepted several candidates (obsidian-engine #34, ONSdigital/Charts #504, srfm-lab #7), but when I went to claim them, the course's Issue Selection site did not list the first two, and a recent srfm-lab commit says its code moved to GitLab. So I searched the site's issue titles by hand and found opensearch-benchmark #348, "Make more descriptive error messages for Transport Errors." Before claiming it, I read the code: the bare "A transport error occurred while running the operation" message the issue complains about is still produced in `osbenchmark/metrics.py`, and `tests/metrics_test.py` still asserts it, so the issue had not gone stale. I claimed it on the site and graded it with my scout.
+
+The scout accepted it both before and after this week's scope patch, with all five required checks passing. After the patch it also gave a difficulty note of moderate: the issue does not say where in the code the transport errors surface, and it dates from 2023, so I have to check that the error path still looks the way the issue describes. The preferred check `responds-to-issues` failed on the second grading even though it passed on the first, because the 5-issue sample was different: now only #1112 was opened by an outsider and it has no maintainer reply. The issue fits me because it is one small, self-contained Python change with a `good first issue` label, in a repository with a recent commit (2026-10-14) and a recent release (1.20.0), and with no math in it. I hope to learn how to trace a message through an unfamiliar codebase, follow a repository's own rules (DCO sign-off and the developer guide), and work with maintainers who reply slowly.
+
+My scout did its main job on #348 but fell short in three ways. It cannot tell whether a maintainer has ever looked at an issue: #348 is three years old with zero comments, and no check sees that. Its `responds-to-issues` check is unreliable on small samples: it came back `unclear` for all three of my earlier picks and then flipped from pass to fail on #348. And it searches all of GitHub while the course site lists only part of it, so two of the issues it accepted could not be claimed at all. I worked around the third problem with a helper script and a manual title search, and I did not change the rubric for the first two. A possible new preferred check would be "a maintainer has commented on the issue in the last 12 months," which I have not tried.
+
+My claim comment: https://github.com/opensearch-project/opensearch-benchmark/issues/348#issuecomment-6390746479
 
 **Toolkit**
 
-- Tool: issue-scout (your scout: your search strategy, your rubric),
-  and how you used it
-- What it produced: [the scan and its verdict on this issue, described]
-- Difficulties: [where it fell short, or "none met" if none did]
-- What changed: [what you patched or would update, or "nothing"]
-
+- Tool: issue-scout (my own search queries and my rubric, as patched this week), plus a helper script (`~/find-candidates.sh`) that I ran before paying to grade. I graded #348 twice: once before claiming it and once after the Unit 6 scope patch.
+- What it produced: accept both times with all five required checks passing. The second grading added the difficulty note (moderate) and graded the preferred check `responds-to-issues` as fail.
+- Difficulties: no check for a maintainer who has never commented on an issue; `responds-to-issues` gives weak or flipping answers on small samples; the scout's search covers more than the course site lists.
+- What changed: on 2026-10-24 I replaced my `scope-is-bounded` check with the course's `scope-feasible` row and added the difficulty-note section. My old check passed anything that named a behavior "however brief or large" (it let a 9-part checklist through) but also demanded a triage label; the new check rejects umbrella issues and no longer asks for a label. The verdict on #348 did not change. I wrote this in `scan-notes.md` with the date.
 ---
 
 ## Understanding the Issue
