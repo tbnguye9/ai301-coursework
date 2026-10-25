@@ -58,11 +58,9 @@ one in the week it belongs to.
 
 I wrote four gh search issues queries and eight ranking rules from my fit profile. My first scan was dominated by issues opened the same day (one drew a competing pull request within an hour), and responds-to-issues passed repositories only because the owner answered their own issues, so I added a creation-date window to the queries and made that check require an issue opened by someone else. The second scan then accepted several repositories only days old because repo-in-use passed on any recent commit, so I added a 90-day minimum repository age and confirmed it by grading one young and one old repository (the young one was rejected and the old one still passed). Because assignees=0 also hid claims on four candidates I checked by hand, I wrote a small script that drops issues with an open pull request before I pay to grade.
 
-**Unit 6: [one line on the tool work]**
+**Unit 6: a voice guard on every post I send, and a repo-memory file for opensearch-benchmark**
 
-[2-4 sentences: the voice-guard, the repo-memory file. What broke or
-fell short, and what changed because of it. "Nothing broke" counts when
-it is true - say how you know.]
+I added four upstream rules (two for claims, one each for questions and pings) to my voice guide, installed the guard as a Claude Code hook, and confirmed it with a wiring test that was blocked as expected; my claim on #348 then posted through it with a `pass` line in the guard log. The guard's script would not have worked on Windows as shipped (it called `claude` instead of `claude.cmd`, read files without UTF-8, and the hook command used `python3`), so I patched my copy and checked each patch with grep before relying on it. I also skipped copying the wild scope files at first, so repro-check refused to grade #348 until I replaced its `scope.md`, which cost me one wasted run. For the memory file I replaced the scoped orientation agent run with a few greps (where the message is built, the test that asserts it, the other TransportError catch sites), kept `CLAUDE.local.md` out of my PR with `.git/info/exclude` (a clean `git status` confirms it), and corrected its build section after trying it: the package refuses native Windows Python 3.14 and `make develop` needs pyenv, so the file now records the WSL venv commands that worked (`tests/metrics_test.py`: 67 passed).
 
 **Unit 7: [one line on the tool work]**
 
@@ -125,31 +123,83 @@ My claim comment: https://github.com/opensearch-project/opensearch-benchmark/iss
 
 **Environment Setup**
 
-[What a stranger would need to stand this up: your operating system,
-the relevant versions (language, runtime, package manager, the project
-itself), and how you set the project up. Then the challenges you faced
-and how you solved them, or that none came up.]
+- OS: Windows with Ubuntu 22.04.4 LTS under WSL2 (all commands below ran in Ubuntu).
+- Python 3.10.12 in a venv (`python3 -m venv ~/osb-venv`).
+- opensearch-benchmark 2.4.0 installed in editable mode from commit `493ef45` of `opensearch-project/opensearch-benchmark` (main), opensearch-py 2.8.0, pytest 9.1.1.
+- Challenges: native Windows Python 3.14.0 is refused (`pip install -e .` fails with "requires a different Python: 3.14.0 not in '<3.14,>=3.10'"), and `make develop` needs `pyenv`, which I do not have. I used WSL with a plain venv and `pip install -e . pytest` instead. Ubuntu also needed `sudo apt-get install python3.10-venv` first. As a check, `python -m pytest tests/metrics_test.py -q` gives 67 passed.
 
 **Steps to Reproduce**
 
-1. [Step 1]
-2. [Step 2]
-3. [Observed result]
+This reproduces the code path of #348 without a live cluster. I did not have a cluster with 3 awareness attributes, so the HTTP 400 from #330 is injected by raising the same exception class with the same text.
+
+1. Clone the repo, check out the commit above, and create the venv as described in Environment Setup. Install with `pip install -e . pytest`.
+2. Save the script below as `repro_348.py` outside the clone.
+3. From the root of the clone, run `python /path/to/repro_348.py`.
+4. Read the printed message.
+
+```python
+import os
+import sys
+
+sys.path.insert(0, os.getcwd())
+
+import opensearchpy
+from osbenchmark import exceptions, metrics
+from tests.metrics_test import OsClientTests
+
+RequestError = opensearchpy.exceptions.RequestError
+print("RequestError is a TransportError subclass:",
+      issubclass(RequestError, opensearchpy.TransportError))
+
+CAUSE = ("index_template [benchmark-metrics] invalid, cause [Validation Failed: 1: "
+         "expected total copies needs to be a multiple of total awareness attributes [3];]")
+
+
+def put_template(*args, **kwargs):
+    raise RequestError(400, "invalid_index_template_exception",
+                       {"error": {"type": "invalid_index_template_exception", "reason": CAUSE},
+                        "status": 400})
+
+
+client = metrics.OsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
+try:
+    client.guarded(put_template)
+except exceptions.BenchmarkError as e:
+    msg = e.args[0]
+    print("Raised:", type(e).__name__)
+    print("Message:", msg)
+    print("Message mentions status 400:", "400" in msg)
+    print("Message mentions invalid_index_template_exception:", "invalid_index_template_exception" in msg)
+    print("Message mentions awareness attributes:", "awareness" in msg)
+    print("Original error kept only as __context__:", repr(e.__context__)[:150])
+```
+
+Why this is the right path: `put_template` in `osbenchmark/metrics.py` (lines 77-78) calls `self.guarded(...)`, and `guarded` catches `opensearchpy.TransportError` (line 158). A 400 is not in its retry list (502, 503, 504, 429), so it reaches the final `else` branch that builds the message.
+
+Observed result (output of the script, on the commit above):
+
+```text
+RequestError is a TransportError subclass: True
+Raised: BenchmarkError
+Message: A transport error occurred while running the operation [put_template] against your OpenSearch metrics store on host [127.0.0.1] at port [9243].
+Message mentions status 400: False
+Message mentions invalid_index_template_exception: False
+Message mentions awareness attributes: False
+Original error kept only as __context__: RequestError(400, 'invalid_index_template_exception', {'error': {'type': 'invalid_index_template_exception', 'reason': 'index_template [benchmark-metr
+```
 
 **Reproduction Evidence**
 
-- **Commit showing reproduction:** [link to commit in your fork]
-- **Screenshots/logs:** [if applicable]
-- **My findings:** [what you discovered during reproduction; an
-  honest, evidenced cannot-reproduce that led you to re-pick or ask
-  the maintainer belongs here and costs you nothing]
+- **Commit showing reproduction:** none (the script lives outside my fork; the output above is the evidence)
+- **Screenshots/logs:** the script output above. Because no logging is configured in the script, the same message and a traceback ending in `RequestError(400, 'invalid_index_template_exception')` were also printed to stderr (from `self.logger.exception(msg)`).
+- **My findings:** for an HTTP 400 `invalid_index_template_exception` (the error reported in #330), the `BenchmarkError` that OSB raises says only that a transport error occurred during `put_template`, with host and port. It has no status code, error type, or reason, so it gives the user no hint to check cluster settings such as the replica or awareness configuration; the cause survives only as the exception's `__context__`. That matches what #348 asks to improve. What I have not shown: a real cluster with 3 awareness attributes, what the user sees on the command line in a real run (I do not know where OSB's logging sends the traceback), and whether other places that catch `TransportError` (`client.py`, `worker_coordinator/runner.py`, `worker_coordinator/worker_coordinator.py`) behave the same. The issue also describes a stack trace, while today the user-visible text is this generic message; the traceback is in the log. The direction I am considering, not yet decided, is to put the status code, error type and reason from the exception into the BenchmarkError message, in the style of the branches above it that already tell the user what to check.
 
 **Toolkit**
 
-- Tool:
-- What it produced:
-- Difficulties:
-- What changed:
+- Tool: repro-check (my unit-2 rubric and voice guide, with the wild `scope.md` from this week), run on my claim draft first and then on the claim draft and this repro report together.
+- What it produced: the first run refused to grade because `scope.md` was still the sandbox one; after I replaced it, the claim alone was accepted, and the claim plus the report was accepted with all seven checks passing. It also pointed out that my claim promised a proposed change while the report had none yet.
+- Difficulties: the refused first run cost me a run. It also suggested dropping the "Commit showing reproduction: none" line, which makes sense for a post on the issue, but this report goes only into my story, where the template asks for that line.
+- What changed: I replaced `scope.md` with the wild one and added to my findings the direction I am considering for the fix. My rubric did not change.
 
 ---
 
