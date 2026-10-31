@@ -11,7 +11,7 @@ files and no evidence uploads are part of Assignment 5.
 **Student:** Thuan Nguyen
 **GitHub Username:** tbnguye9
 **Issue:** https://github.com/opensearch-project/opensearch-benchmark/issues/348
-**Pull Request:** not opened yet
+**Pull Request:** https://github.com/opensearch-project/opensearch-benchmark/pull/1129
 
 One repository, built across units 5 to 8, telling the whole story of your real
 contribution. Fill it as you work, not at the end — the sections below ask for evidence that
@@ -62,10 +62,9 @@ I wrote four gh search issues queries and eight ranking rules from my fit profil
 
 I added four upstream rules (two for claims, one each for questions and pings) to my voice guide, installed the guard as a Claude Code hook, and confirmed it with a wiring test that was blocked as expected; my claim on #348 then posted through it with a `pass` line in the guard log. The guard's script would not have worked on Windows as shipped (it called `claude` instead of `claude.cmd`, read files without UTF-8, and the hook command used `python3`), so I patched my copy and checked each patch with grep before relying on it. I also skipped copying the wild scope files at first, so repro-check refused to grade #348 until I replaced its `scope.md`, which cost me one wasted run. For the memory file I replaced the scoped orientation agent run with a few greps (where the message is built, the test that asserts it, the other TransportError catch sites), kept `CLAUDE.local.md` out of my PR with `.git/info/exclude` (a clean `git status` confirms it), and corrected its build section after trying it: the package refuses native Windows Python 3.14 and `make develop` needs pyenv, so the file now records the WSL venv commands that worked (`tests/metrics_test.py`: 67 passed).
 
-**Unit 7: [one line on the tool work]**
+**Unit 7: a ship-gate and a manifest that run my own checks through WSL before the PR opens**
 
-[2-4 sentences: the ship-gate and your gate manifest. What it produced
-on your real branch, what fought you, what changed because of it.]
+I installed the ship-gate and wrote a manifest with two checks, the unit tests and the lint from `make lint`, both run through WSL because the package does not install on native Windows Python, and I excluded two tests that already fail on `main`, with the date and the reason. The gate did not work on my machine as shipped: its hook used `python3`, which does not exist here, so it failed silently until I changed it to `python`, and its pr-precheck call used `claude` instead of `claude.cmd`, so it stopped the PR until I patched my copy the way I had patched the voice guard. It then passed my branch, but when the cheap model I used to open the PR went beyond my command and rewrote the PR body, the gate ran again and stopped it twice: once on a wrong test count in that body, and once on whitespace-only churn in my branch, where my pasted test change had re-indented lines of an existing assertion. I restored the indentation, amended the commit, ran the gate again until it passed, and opened the PR with a command that told the model to run exactly one command and nothing else.
 
 **Unit 8: [one line on the tool work]**
 
@@ -274,38 +273,38 @@ My `main` was three commits behind upstream, so I rebased the branch onto `8d84e
 
 I then updated the old test and added two new ones, checked that all three fail on the original code, and committed the change as one commit with a DCO sign-off (`git commit -s`), as the developer guide asks.
 
+**2026-10-31**
+
+When I tried to open the PR, the ship-gate stopped it twice. The first stop was about a test count in a PR body that the cheap model had rewritten on its own, so I went back to my own `pr_draft.md`. The second stop was real: the gate found whitespace-only churn, because when I pasted my updated test into the editor, the continuation lines of an existing `assertEqual` were re-indented from 25 spaces to 20. I confirmed it by comparing `git diff --stat` with and without `-w` (45 and 4 changed lines against 41 and 2), restored the indentation with `sed`, and amended the commit (now `6acd746`) so the branch is still one commit, then force-pushed it to my fork, where nobody else works on the branch. After the gate passed again I opened the PR.
+
 **Toolkit**
 
 - Tool: git (branch, rebase, stash, a signed-off commit) and VS Code for the edits, with Claude in chat drafting the helper and the tests, which I pasted in, ran and checked myself.
-- What it produced: one commit (`d0f4454`) changing `osbenchmark/metrics.py` and `tests/metrics_test.py`.
-- Difficulties: the first draft of the hint made a claim about the cause that this branch cannot always support, and I only caught it on rereading. Output I copied from the terminal sometimes showed spaces missing, so I checked the file with grep instead of trusting the paste.
-- What changed: I softened the hint wording and recorded it, and the other two differences from my plan, as deviations.
+- What it produced: one commit (`6acd746`, amended from `d0f4454`) changing `osbenchmark/metrics.py` and `tests/metrics_test.py`.
+- Difficulties: the first draft of the hint made a claim about the cause that this branch cannot always support, and I only caught it on rereading. Output I copied from the terminal sometimes showed spaces missing, so I checked the file with grep instead of trusting the paste. When I pasted the updated test, the editor also changed the indentation of lines I had not meant to touch, which only the gate caught.
+- What changed: I softened the hint wording and recorded it, and the other two differences from my plan, as deviations. I restored the indentation with `sed` and amended the commit.
 
 ---
 
 ## Pull Request
 
-**PR Link:** [GitHub PR URL when opened]
+**PR Link:** https://github.com/opensearch-project/opensearch-benchmark/pull/1129
 
-**PR Description:** [what the PR says; much of the content above
-adapts into it]
+**PR Description:** The title is "Include HTTP status and reason in metrics store transport error messages". When `OsClient.guarded` raises a `BenchmarkError` for a `TransportError` it does not retry, the message never used the caught exception, so the HTTP status and the reason from OpenSearch were lost. The PR adds a small helper, `_describe_transport_error`, and uses it in that one branch of `osbenchmark/metrics.py`, so the message now includes the status, the error type and the reason when OpenSearch returned them, plus a hint to check the configuration of the metrics store, as #348 suggests. It does not change the retry logic, the other `except` branches or the other places that catch `TransportError`. The description shows the message before and after for a 400 `RequestError`, the updated test and two new tests (all three fail on the original code), the checks I ran (1496 tests passed and lint at 10.00/10, with two tests that already fail on `main` deselected and `make it` not run), and says that Claude helped me write the helper, tests and description and that I ran the checks myself. It ends with `Fixes #348`.
 
 **Maintainer Feedback:**
 
-- [Date]: [feedback received, or "none yet"; silence is a normal
-  state and costs you nothing]
-- [Date]: [how you addressed it]
+- 2026-10-31: none yet. The PR was opened today, and my repro comment on #348 has no reply either.
+- Nothing to address yet.
 
-**Status:** [Awaiting review / Iterating / Merged / Closed. The
-status is a fact you record, never a grade: the PR is graded as
-opened.]
+**Status:** Awaiting review
 
 **Toolkit**
 
-- Tool:
-- What it produced:
-- Difficulties:
-- What changed:
+- Tool: the ship-gate (my manifest and my pr-precheck rubric), `gh pr create`, and Claude Code with the Haiku model to run the one command that opens the PR.
+- What it produced: a PASS from the gate on my branch, and pull request #1129 on `opensearch-project/opensearch-benchmark`, with `Fixes #348`, my own description, and my sign-off on the commit.
+- Difficulties: the gate hook used `python3` and its model call used `claude` instead of `claude.cmd`, so it did not run until I patched my copy. Haiku went beyond my command: it reran tests, wrote a different PR body and tried to add an attribution line. The gate then stopped it twice, once on a wrong test count in that body and once on whitespace-only churn in my branch.
+- What changed: I changed `python3` to `python` in the hook and `claude` to `claude.cmd` in `check_gate.py`, restored the indentation and amended the commit, and now tell the model to run exactly one command and nothing else.
 
 ---
 
