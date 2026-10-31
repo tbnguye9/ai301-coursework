@@ -96,26 +96,28 @@ My claim comment: https://github.com/opensearch-project/opensearch-benchmark/iss
 
 **Problem Description**
 
-[In your own words, what is broken or missing?]
+When the metrics store returns an HTTP error that is not one of the cases OSB handles itself, OSB tells the user only that "a transport error occurred" during an operation. The status code and the reason that OpenSearch sent back are left out, so the user gets no hint about what to check. Issue #348 asks for a more descriptive message for these errors.
 
 **Expected Behavior**
 
-[What should happen?]
+The message should point the user in a useful direction. The issue's own example says OSB tried to create an index, hit a transport error, and that the cause may be the cluster's default number of replicas or other settings, so the user should re-evaluate the cluster configuration. At the least, the message should carry the status code and the reason from the error, the way the authentication and connection branches already tell the user what to check.
 
 **Current Behavior**
 
-[What actually happens?]
+In `OsClient.guarded`, the generic `TransportError` branch raises a `BenchmarkError` with the same sentence every time: "A transport error occurred while running the operation [..] against your OpenSearch metrics store on host [..] at port [..]." My reproduction with an HTTP 400 `invalid_index_template_exception` (the error from #330) shows that the message has no status code, no error type and no reason. The original error survives only as `__context__` and in the log.
 
 **Affected Components**
 
-[Which parts of the codebase are involved?]
+- `osbenchmark/metrics.py`: `OsClient.guarded` (the generic `TransportError` branch, around lines 158 to 166), reached through `put_template` (lines 77 to 78).
+- `tests/metrics_test.py`: `OsClientTests.test_fails_after_too_many_errors` asserts the current message word for word, so it has to change with the fix.
+- Other places that catch `TransportError` (`osbenchmark/client.py`, `osbenchmark/worker_coordinator/runner.py`, `osbenchmark/worker_coordinator/worker_coordinator.py`, `osbenchmark/telemetry.py`) are related but outside what I plan to change.
 
 **Toolkit**
 
-- Tool:
-- What it produced:
-- Difficulties:
-- What changed:
+- Tool: `gh issue view` to read the issue and its thread, `sed` and grep to read `OsClient.guarded` and the test that asserts its message, and Claude in chat to talk through what the issue asks for before I wrote the answers above.
+- What it produced: the issue text with its example message, the exact lines of the generic branch, and the test that has to change with it.
+- Difficulties: the issue is from 2023 and does not say where in the code the error surfaces, and it describes a stack trace while today the user-visible text is the generic message (the traceback is in the log). I had to check both against the current code.
+- What changed: I narrowed my reading of the issue to the one generic branch, because that is where the message loses its detail, and left the other `TransportError` catch sites out of scope.
 
 ---
 
@@ -207,29 +209,35 @@ Original error kept only as __context__: RequestError(400, 'invalid_index_templa
 
 **Analysis**
 
-[Your analysis of the root cause: what is causing the issue, traced
-to the files and functions involved.]
+In `osbenchmark/metrics.py`, `OsClient.guarded` wraps every call to the metrics store. Its last transport branch, `except opensearchpy.TransportError as e`, retries on 502, 503, 504 and 429. For every other status, or once the retries run out, it raises `BenchmarkError` with a generic message: "A transport error occurred while running the operation [..] against your OpenSearch metrics store on host [..] at port [..]." That message never uses the caught exception `e`.
+
+I reproduced this with a stand-in error and posted the steps, the script and the output on issue #348 on 2026-10-31. `RequestError` is a subclass of `TransportError`, so a 400 `RequestError` (the `invalid_index_template_exception` from issue #330) reaches this branch. The message the user gets has no status code, no error type and no reason, and the original error survives only as `__context__` and in the log. The branches above it (authentication, authorization, connection timeout, connection error) already tell the user what to check, which is the style issue #348 asks for.
+
+What I have not checked:
+
+- The repro uses a stand-in error, not a real cluster, so I have not confirmed that the failure from #330 still reaches `guarded` today.
+- I have not looked at the other places that catch `TransportError` (`osbenchmark/client.py`, `osbenchmark/worker_coordinator/runner.py`, `osbenchmark/worker_coordinator/worker_coordinator.py`, `osbenchmark/telemetry.py`).
+- I have not heard back from a maintainer on the approach. I asked in my repro comment on #348.
 
 **Proposed Solution**
 
-[High-level description of your fix approach, and what you are
-deliberately NOT changing.]
+In the generic `TransportError` branch of `OsClient.guarded` only, extend the message with the HTTP status code, the reason OpenSearch returned, and one sentence pointing the user to the metrics store cluster configuration (for example the default number of replicas, or an index template that conflicts with the cluster settings), as suggested in issue #348. The error type stays `BenchmarkError` and the retry logic stays as it is. A small private helper reads `e.status_code`, `e.error` and `e.info` defensively, because `info` can be `None` or have an unexpected shape, and falls back to `e.error` when there is no reason in `info`. I will not change the other except branches, the other `TransportError` catch sites listed above, or the `telemetry.py` messages. If a maintainer wants those covered, they belong in a follow-up PR. If a maintainer asks for a different direction on #348, I will update this plan before I change the code.
 
 **Implementation Plan**
 
-1. [Modify file X to do Y]
-2. [Add or change Z]
-3. [Update tests]
+1. Add the helper that builds the detail text from a `TransportError`, and use it in the generic branch of `OsClient.guarded` to extend the message.
+2. Update `tests/metrics_test.py::OsClientTests::test_fails_after_too_many_errors`, which asserts the old message exactly, so that it expects the new message for the random status code it uses.
+3. Add a test that raises a `RequestError` with status 400 and an `info` body containing a reason, and asserts that the status code, the reason and the configuration hint appear in the `BenchmarkError` message. It must fail on main and pass with the fix. Add a second small test for a `TransportError` without `info`.
+4. Run the manifest checks (unit tests and lint) and my reproduction script before and after the fix, and save the output in `test_evidence.md`.
 
-[Record deviations here as they happen: what changed mid-build and
-why. A recorded deviation is honest work; silent drift is not.]
+Deviations: none yet.
 
 **Toolkit**
 
-- Tool:
-- What it produced:
-- Difficulties:
-- What changed:
+- Tool: plan-check (my rubric, run with Sonnet from Claude Code), on `plan.md` and a draft plan comment, `plan-comment.md`, which I did not post.
+- What it produced: the first run rejected the plan. The plan itself passed, but `diagnosis-fits-evidence` came back unclear and `claims-match-certainty` failed, because my repro was only in my private notes and the draft comment opened with "here is what I found" without showing any findings. After I posted the repro on #348, listed what I have not checked, and reworded the comment, the second run accepted it with all eight checks passing.
+- Difficulties: the first run cost me credit. The repro-check run on my repro comment also rejected it once, because I had cut the environment, the script and the steps out of the draft, and I had to put them back. plan-check expects a file called `comment.md` and a `## Deviations` heading, while mine is `plan-comment.md`, and it cannot see whether I ran repro-check before posting. It also pointed out that my repro comment asked a maintainer a question that is still unanswered.
+- What changed: I posted the repro comment on #348 on 2026-10-31, the day my claim comment's one-week report-back came due. I added the "What I have not checked" list to the plan and a line saying I will update the plan if a maintainer redirects, and I reworded the plan comment to build on the posted repro.
 
 ---
 
