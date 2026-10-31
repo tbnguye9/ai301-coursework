@@ -230,7 +230,11 @@ In the generic `TransportError` branch of `OsClient.guarded` only, extend the me
 3. Add a test that raises a `RequestError` with status 400 and an `info` body containing a reason, and asserts that the status code, the reason and the configuration hint appear in the `BenchmarkError` message. It must fail on main and pass with the fix. Add a second small test for a `TransportError` without `info`.
 4. Run the manifest checks (unit tests and lint) and my reproduction script before and after the fix, and save the output in `test_evidence.md`.
 
-Deviations: none yet.
+Deviations (2026-10-31), where the built fix differs from the plan above:
+
+- The helper reads the error and the info from `e.args` instead of `e.error` and `e.info`. For a `TransportError` built with only a status code, those two properties index into `args` and can raise `IndexError`, and the repo's own test builds errors that way.
+- The error type and the reason are listed as two separate parts of the message, so there is no fallback from one to the other.
+- The hint says the problem "could be related to" the metrics store configuration, instead of saying that it conflicts with what OSB asks for. This branch also runs when a 502, 503, 504 or 429 keeps failing after the retries, and then the cause is more likely an overloaded cluster than a configuration conflict.
 
 **Toolkit**
 
@@ -243,39 +247,39 @@ Deviations: none yet.
 
 ## Testing Strategy
 
-[What observable checks prove the fix: your reproduction steps re-run
-against the built change (before and after), and the repo's own test
-suite or checks with the outcome shown. "Tests pass" with nothing
-observable named is not a strategy.]
+**1. My reproduction, before and after.** I run `repro_348.py` (the script posted on #348) on the same branch point with and without my change. Before the fix, the message has no status code, no error type and no reason, and the three checks the script prints all say `False`. After the fix, the message contains `HTTP status [400], error [invalid_index_template_exception]` and the awareness-attributes reason, and all three checks say `True`. Both outputs are saved word for word.
+
+**2. A test that fails without the fix.** I added two tests to `OsClientTests` in `tests/metrics_test.py`. One raises a 400 `RequestError` with an error body and checks that the status, the error type, the reason and the configuration hint appear in the `BenchmarkError` message. The other raises a `TransportError` with only a status code and checks that the message still builds, with no reason. I also updated `test_fails_after_too_many_errors`, which asserted the old message. I put `osbenchmark/metrics.py` back to its original state (`git stash`), ran these three tests, and all three failed with the old message. With the fix back in place they pass, and `tests/metrics_test.py` gives 69 passed (67 before).
+
+**3. The repo's own checks.** I run the two checks from my ship manifest, the way the ship-gate runs them in a fresh Windows Command Prompt: the unit tests (`pytest tests/`) gave 1496 passed, 5 skipped, 2 deselected with exit code 0, and the lint (`pylint` with the repo's `.pylintrc`, as in `make lint`) gave 10.00/10 with exit code 0. I deselected two tests that already fail on `main` on my machine and my change does not touch (`ScriptsTests::test_scr`, caused by CRLF line endings on Windows, and a timing-based throughput test), and I recorded them with the date and reason in the manifest. I did not run `make it` (the integration tests need Java and several Python versions), and I did not run against a real cluster.
 
 **Toolkit**
 
-- Tool:
-- What it produced:
-- Difficulties:
-- What changed:
+- Tool: pytest and pylint 2.9.0 in my WSL venv, called from Windows through `wsl bash -c` in a small `.cmd` file so I could run both checks exactly as the ship-gate does; `git stash` to run the new tests on the original code.
+- What it produced: before and after output of my reproduction, the three failing tests on the old code, and 1496 passed with a 10.00/10 lint on the new code. All of it is saved in `test_evidence.md`.
+- Difficulties: native Windows Python is not supported, so every check goes through WSL. The lint first failed on a missing `ujson` import in my venv, and two tests already fail on `main` on my machine. Long commands I pasted into Command Prompt broke across lines.
+- What changed: I installed `ujson` in the venv, moved the long commands into `gate-test.cmd`, and put the two failing tests in the manifest's excluded table with the date and the reason.
 
 ---
 
 ## Implementation Notes
 
-[A running log, added to as you work. Date each entry. What you
-built, decisions you made when you made them, wrong turns included.]
+**2026-10-31**
 
-**[Date]**
+Before building, I installed the ship-gate and wrote my manifest: the unit tests and the lint, both through WSL, with two tests that already fail on `main` listed as excluded with the reason. The ship-gate's hook used `python3`, which does not exist on my Windows machine, so it failed silently on my first test until I changed it to `python`. I also ran plan-check, which rejected my plan because my repro was only in my private notes, so I posted the repro on #348 (the report I had promised in my claim comment, due that day) and then got an accept on the revised plan.
 
-[Entry]
+**2026-10-31**
 
-**[Date]**
+My `main` was three commits behind upstream, so I rebased the branch onto `8d84e6a` before changing anything. None of the three commits touched `metrics.py` or its test, and my reproduction gave the same result. I added a helper, `_describe_transport_error`, and used it in the generic `TransportError` branch of `OsClient.guarded`. My first wording of the hint said the error "can happen when the settings of your metrics store conflict with what OSB asks for". When I reread it I saw that this branch also runs after retries on 502, 503, 504 and 429, where an overloaded cluster is the likelier cause, so I softened it to "could be related to". I wrote the deviations from my plan in Solution Approach.
 
-[Entry]
+I then updated the old test and added two new ones, checked that all three fail on the original code, and committed the change as one commit with a DCO sign-off (`git commit -s`), as the developer guide asks.
 
 **Toolkit**
 
-- Tool:
-- What it produced:
-- Difficulties:
-- What changed:
+- Tool: git (branch, rebase, stash, a signed-off commit) and VS Code for the edits, with Claude in chat drafting the helper and the tests, which I pasted in, ran and checked myself.
+- What it produced: one commit (`d0f4454`) changing `osbenchmark/metrics.py` and `tests/metrics_test.py`.
+- Difficulties: the first draft of the hint made a claim about the cause that this branch cannot always support, and I only caught it on rereading. Output I copied from the terminal sometimes showed spaces missing, so I checked the file with grep instead of trusting the paste.
+- What changed: I softened the hint wording and recorded it, and the other two differences from my plan, as deviations.
 
 ---
 
