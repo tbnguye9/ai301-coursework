@@ -66,10 +66,9 @@ I added four upstream rules (two for claims, one each for questions and pings) t
 
 I installed the ship-gate and wrote a manifest with two checks, the unit tests and the lint from `make lint`, both run through WSL because the package does not install on native Windows Python, and I excluded two tests that already fail on `main`, with the date and the reason. The gate did not work on my machine as shipped: its hook used `python3`, which does not exist here, so it failed silently until I changed it to `python`, and its pr-precheck call used `claude` instead of `claude.cmd`, so it stopped the PR until I patched my copy the way I had patched the voice guard. It then passed my branch, but when the cheap model I used to open the PR went beyond my command and rewrote the PR body, the gate ran again and stopped it twice: once on a wrong test count in that body, and once on whitespace-only churn in my branch, where my pasted test change had re-indented lines of an existing assertion. I restored the indentation, amended the commit, ran the gate again until it passed, and opened the PR with a command that told the model to run exactly one command and nothing else.
 
-**Unit 8: [one line on the tool work]**
+**Unit 8: a PR monitor and a playbook built from this repo's own reply times, patched to run on Windows**
 
-[2-4 sentences: the PR-monitor and your playbook. What it read, what it
-drafted, what you did with the draft.]
+I wrote the playbook from CONTRIBUTING.md and from the first human response times on six recent merged pull requests by outside contributors (0.7 to 5.5 days), which gave me a 7-day nudge threshold. The monitor did not run on Windows as shipped: `--state` crashed on a cp1252 decoding error until I set `PYTHONUTF8=1`, and the drafting step stopped with "the claude CLI is not on PATH" because it called `claude` instead of `claude.cmd`, so I patched line 830 of my copy. By then OVI3D0 had left an inline review comment, which the monitor's report cannot show, so I read it with `gh api`, pushed the fix and posted a reply with drafting help from Claude; the monitor then drafted "wait, nothing to send" (earliest nudge 2026-11-13) and I posted nothing from its draft. It also reported "3 passing" checks without saying that the Unit Tests, Integration Tests and Docker Build workflows were waiting for maintainer approval, which I only found with `gh run list`, so I added a playbook rule to read inline review comments myself before I answer.
 
 ---
 
@@ -89,6 +88,7 @@ My claim comment: https://github.com/opensearch-project/opensearch-benchmark/iss
 - What it produced: accept both times with all five required checks passing. The second grading added the difficulty note (moderate) and graded the preferred check `responds-to-issues` as fail.
 - Difficulties: no check for a maintainer who has never commented on an issue; `responds-to-issues` gives weak or flipping answers on small samples; the scout's search covers more than the course site lists.
 - What changed: on 2026-10-24 I replaced my `scope-is-bounded` check with the course's `scope-feasible` row and added the difficulty-note section. My old check passed anything that named a behavior "however brief or large" (it let a 9-part checklist through) but also demanded a triage label; the new check rejects umbrella issues and no longer asks for a label. The verdict on #348 did not change. I wrote this in `scan-notes.md` with the date.
+
 ---
 
 ## Understanding the Issue
@@ -234,6 +234,7 @@ Deviations (2026-10-31), where the built fix differs from the plan above:
 - The helper reads the error and the info from `e.args` instead of `e.error` and `e.info`. For a `TransportError` built with only a status code, those two properties index into `args` and can raise `IndexError`, and the repo's own test builds errors that way.
 - The error type and the reason are listed as two separate parts of the message, so there is no fallback from one to the other.
 - The hint says the problem "could be related to" the metrics store configuration, instead of saying that it conflicts with what OSB asks for. This branch also runs when a 502, 503, 504 or 429 keeps failing after the retries, and then the cause is more likely an overloaded cluster than a configuration conflict.
+- 2026-11-06, after review: OVI3D0 pointed out that the configuration hint could mislead on a 5XX, so the hint is now added only for 4XX statuses (commit `dda2bc7`).
 
 **Toolkit**
 
@@ -277,6 +278,10 @@ I then updated the old test and added two new ones, checked that all three fail 
 
 When I tried to open the PR, the ship-gate stopped it twice. The first stop was about a test count in a PR body that the cheap model had rewritten on its own, so I went back to my own `pr_draft.md`. The second stop was real: the gate found whitespace-only churn, because when I pasted my updated test into the editor, the continuation lines of an existing `assertEqual` were re-indented from 25 spaces to 20. I confirmed it by comparing `git diff --stat` with and without `-w` (45 and 4 changed lines against 41 and 2), restored the indentation with `sed`, and amended the commit (now `6acd746`) so the branch is still one commit, then force-pushed it to my fork, where nobody else works on the branch. After the gate passed again I opened the PR.
 
+**2026-11-06**
+
+OVI3D0 asked to show the configuration hint only for 4XX errors. The PR page only said he had left one comment, so I read the inline comment with `gh api`. I changed the `else` branch in `OsClient.guarded` so the hint is added only when `e.status_code` is an integer from 400 to 499. The old `test_fails_after_too_many_errors` picks a random code from its table, which can include a 5XX, so I made it expect the hint only for 4XX, and I added a test for a 500 error that checks the hint is absent. When I pasted the tests, I accidentally deleted `test_transport_error_message_without_error_details`; the count stayed at 69 instead of 70 and `git diff` showed a removed `def` line, so I put the test back. Pylint then flagged trailing whitespace on one line, which I removed. I ran the new test against the previous `metrics.py` with `git stash` (it failed), then got 70 passed in `tests/metrics_test.py`, 1497 passed and 5 skipped in the full suite (same two deselected tests) and pylint 10.00/10. The developer guide wants review fixes as separate commits, so I committed `dda2bc7` with a sign-off, fixed a typo in its message with an amend before pushing, and pushed without force. Then I posted a reply on the PR with drafting help from Claude and re-requested his review.
+
 **Toolkit**
 
 - Tool: git (branch, rebase, stash, a signed-off commit) and VS Code for the edits, with Claude in chat drafting the helper and the tests, which I pasted in, ran and checked myself.
@@ -294,8 +299,8 @@ When I tried to open the PR, the ship-gate stopped it twice. The first stop was 
 
 **Maintainer Feedback:**
 
-- 2026-10-31: none yet. The PR was opened today, and my repro comment on #348 has no reply either.
-- Nothing to address yet.
+- 2026-11-05: OVI3D0 (a maintainer) left one inline comment on `osbenchmark/metrics.py`: show the sentence about the metrics store configuration only for 4XX errors, because it could mislead users who get a 5XX. The bot's reviewer guide (2026-10-31) found no issues and needed no answer.
+- 2026-11-06: I pushed `dda2bc7` as a separate commit (the hint is added only when the HTTP status is 4XX, plus a new 5XX test; that test fails on the previous `metrics.py`), replied on the PR with the commit and the test results, asked whether 429 should also lose the hint, and re-requested his review. The Unit Tests, Integration Tests and Docker Build workflows show "action required" on the new commit and are waiting for approval.
 
 **Status:** Awaiting review
 
@@ -312,25 +317,23 @@ When I tried to open the PR, the ship-gate stopped it twice. The first stop was 
 
 **Technical Skills Gained**
 
-[What you learned technically, named concretely.]
+I learned to trace an error message through an unfamiliar codebase to the one `except` branch that builds it (`OsClient.guarded`), and to read exception details safely from `e.args` when a `TransportError` may carry only a status code. I learned to test a branch that depends on a random input by computing the expected message from the input, and to prove that a new test catches the old behavior by running it against the previous file with `git stash`. I also learned to read CI states beyond pass and fail (`action_required` on a fork PR means a maintainer must approve the workflows), to use `gh api` to read inline review comments and pull request timelines, and to follow a repository's rules (DCO sign-off, review fixes as separate commits, running the project's tests and lint through a WSL virtual environment).
 
 **Challenges Overcome**
 
-[What was hard and how you solved it; point at the real events, the
-Toolkit blocks above are full of them.]
+Most of my tooling needed patches to run on Windows: the voice guard, the ship-gate and the PR monitor each called `claude` or `python3` where this machine needs `claude.cmd` or `python`, or read files without UTF-8, and I fixed each one and checked the fix before relying on it. Pasting code also cost me twice: whitespace-only churn in the PR before I opened it (caught by the ship-gate), and a deleted test during the review fix (caught because the test count did not go up). In both cases I found the problem by comparing against the evidence (`git diff`, a test count) instead of trusting that the paste was right. Finally, my claim on a first issue could not be made because the scout's search covers more than the course site lists, so I searched the site by hand and found #348.
 
 **What I'd Do Differently Next Time**
 
-[Reflection on your process.]
+After every paste into a file, I would run `git diff` and read the list of removed and added lines before running anything else. I would read an inline review comment the same day it arrives and ask the one question it raises (here, whether 429 should lose the hint) in my first reply. I would also check the workflow states with `gh run list` after each push, so I know whether missing checks mean a failure or a wait for approval. And I would run the full test suite after each change, before writing any number into a comment.
 
 ---
 
 ## Resources Used
 
-[What actually helped, not a reading list. List things this story
-already shows you using: the doc you followed to set the environment
-up, the thread that explained the bug, the person who answered you.
-One real entry beats ten plausible ones.]
-
-- [Link to documentation that helped]
-- [Discussion, issue, or post that helped]
+- [opensearch-benchmark CONTRIBUTING.md](https://github.com/opensearch-project/opensearch-benchmark/blob/main/CONTRIBUTING.md): the review process (replies, abandoned PRs) that I used to set my playbook, and the DCO sign-off rule.
+- [opensearch-benchmark DEVELOPER_GUIDE.md](https://github.com/opensearch-project/opensearch-benchmark/blob/main/DEVELOPER_GUIDE.md): how to build and test, and the rule that review fixes go in as separate commits.
+- [Issue #348](https://github.com/opensearch-project/opensearch-benchmark/issues/348), the issue I fixed, and #330, whose `invalid_index_template_exception` is the failure the new message makes visible.
+- [OVI3D0's inline review comment on PR #1129](https://github.com/opensearch-project/opensearch-benchmark/pull/1129): the maintainer feedback that led to the 4XX-only hint and the new test.
+- Six merged pull requests by outside contributors (#1099, #1107, #1111, #1113, #1116, #1123): their first human responses gave me the 7-day nudge threshold in my playbook.
+- My own voice guide (the Upstream rules on pings), which shaped the nudge rule in my playbook and the tone of my reply.
